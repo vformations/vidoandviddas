@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Payment</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0f; --surface: #111118; --surface2: #1a1a24;
+    --border: rgba(255,255,255,0.07); --border-focus: rgba(120,100,255,0.5);
+    --accent: #7864ff; --accent2: #a78bfa; --text: #f0eeff;
+    --muted: rgba(240,238,255,0.4); --success: #34d399; --error: #f87171;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+  }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--sans);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 2rem 1rem; overflow-x: hidden; position: relative;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(120,100,255,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 80% 80%, rgba(167,139,250,0.06) 0%, transparent 70%);
+  }
+  .wrapper { width: 100%; max-width: 480px; position: relative; }
+  .header { margin-bottom: 2rem; opacity: 0; animation: fadeUp 0.5s ease forwards; }
+  .merchant-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(120,100,255,0.1); border: 1px solid rgba(120,100,255,0.2);
+    border-radius: 100px; padding: 4px 12px 4px 6px;
+    font-size: 11px; font-family: var(--mono); color: var(--accent2);
+    letter-spacing: 0.05em; margin-bottom: 1rem;
+  }
+  .merchant-badge .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); box-shadow: 0 0 6px var(--success);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .header h1 { font-size: 26px; font-weight: 300; letter-spacing: -0.02em; }
+  .header h1 span { color: var(--accent2); font-weight: 500; }
+  .amount-display { margin-top: 0.5rem; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .amount-display strong { color: var(--text); font-weight: 400; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2rem;
+    opacity: 0; animation: fadeUp 0.5s ease 0.1s forwards;
+  }
+
+  /* Live card visual */
+  .card-visual {
+    background: linear-gradient(135deg, #1e1a3a 0%, #2a1f5e 50%, #1a1535 100%);
+    border: 1px solid rgba(120,100,255,0.3); border-radius: 14px;
+    padding: 1.25rem 1.5rem; margin-bottom: 1.75rem;
+    position: relative; overflow: hidden; height: 130px;
+  }
+  .card-visual::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(120,100,255,0.2), transparent 70%);
+  }
+  .card-chip {
+    width: 32px; height: 24px;
+    background: linear-gradient(135deg, #c8a96e, #f0d080, #c8a96e);
+    border-radius: 4px; margin-bottom: 1rem; position: relative; z-index: 1;
+  }
+  .card-number-preview {
+    font-family: var(--mono); font-size: 15px; letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.9); margin-bottom: 0.75rem; position: relative; z-index: 1;
+  }
+  .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; position: relative; z-index: 1; }
+  .card-holder-preview { font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+  .card-holder-preview span { display: block; font-size: 13px; color: rgba(255,255,255,0.9); margin-top: 2px; }
+  .card-expiry-preview { text-align: right; font-family: var(--mono); }
+  .card-expiry-preview .label { font-size: 9px; color: rgba(255,255,255,0.5); letter-spacing: 0.1em; text-transform: uppercase; }
+  .card-expiry-preview .value { font-size: 13px; color: rgba(255,255,255,0.9); margin-top: 2px; }
+
+  .field-group { margin-bottom: 1rem; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  label { display: block; font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; font-family: var(--mono);
+    font-size: 14px; color: var(--text); outline: none;
+    transition: border-color 0.2s, background 0.2s; -webkit-appearance: none;
+  }
+  input::placeholder { color: rgba(240,238,255,0.18); }
+  input:focus { border-color: var(--border-focus); background: rgba(26,26,36,0.8); }
+  input.has-value { border-color: rgba(120,100,255,0.25); }
+  input.error { border-color: rgba(248,113,113,0.5); }
+  .error-msg { font-size: 11px; color: var(--error); font-family: var(--mono); margin-top: 4px; display: none; }
+  .error-msg.show { display: block; }
+
+  .global-error {
+    background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 1rem;
+    font-size: 12px; font-family: var(--mono); color: var(--error);
+    display: none; line-height: 1.5;
+  }
+  .global-error.show { display: block; }
+
+  .security-row {
+    display: flex; align-items: center; gap: 8px; margin: 1.25rem 0;
+    padding: 10px 14px; background: rgba(52,211,153,0.05);
+    border: 1px solid rgba(52,211,153,0.12); border-radius: 10px;
+  }
+  .security-row svg { flex-shrink: 0; color: var(--success); }
+  .security-row p { font-size: 11px; font-family: var(--mono); color: var(--success); opacity: 0.8; letter-spacing: 0.03em; }
+
+  .submit-btn {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: 12px; padding: 15px; font-family: var(--sans);
+    font-size: 15px; font-weight: 500; cursor: pointer;
+    position: relative; overflow: hidden; transition: opacity 0.2s, transform 0.15s;
+  }
+  .submit-btn:hover { opacity: 0.9; }
+  .submit-btn:active { transform: scale(0.985); }
+  .submit-btn::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+    pointer-events: none;
+  }
+  .btn-content { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .loader { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  .submit-btn.loading .btn-text { display: none; }
+  .submit-btn.loading .loader { display: block; }
+
+  .footer {
+    margin-top: 1.25rem; display: flex; align-items: center;
+    justify-content: center; gap: 16px;
+    opacity: 0; animation: fadeUp 0.5s ease 0.2s forwards;
+  }
+  .footer-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.04em; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div class="merchant-badge"><span class="dot"></span>SECURE CHECKOUT</div>
+    <h1>Complete your <span>payment</span></h1>
+    <p class="amount-display">Total due: <strong>USD 107.00</strong> &nbsp;·&nbsp; acceleratewizz</p>
+  </div>
+
+  <div class="card">
+    <div class="card-visual">
+      <div class="card-chip"></div>
+      <div class="card-number-preview" id="preview-number">•••• &nbsp;•••• &nbsp;•••• &nbsp;••••</div>
+      <div class="card-bottom">
+        <div class="card-holder-preview">Card holder<span id="preview-name">YOUR NAME</span></div>
+        <div class="card-expiry-preview">
+          <div class="label">Expires</div>
+          <div class="value" id="preview-expiry">MM/YY</div>
+        </div>
+      </div>
+    </div>
+
+    <form id="payment-form" novalidate>
+      <div class="global-error" id="global-error"></div>
+
+      <div class="field-group">
+        <label for="cardholder">Cardholder name</label>
+        <input type="text" id="cardholder" placeholder="Name as on card" autocomplete="cc-name" maxlength="60">
+        <div class="error-msg" id="err-cardholder">Please enter the cardholder name</div>
+      </div>
+
+      <div class="field-group">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+        <div class="error-msg" id="err-email">Please enter a valid email address</div>
+      </div>
+
+      <div class="field-group">
+        <label for="pan">Card number</label>
+        <input type="text" id="pan" placeholder="0000 0000 0000 0000" autocomplete="cc-number" inputmode="numeric" maxlength="19">
+        <div class="error-msg" id="err-pan">Please enter a valid 16-digit card number</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label for="expiry">Expiry date</label>
+          <input type="text" id="expiry" placeholder="MM/YY" autocomplete="cc-exp" inputmode="numeric" maxlength="5">
+          <div class="error-msg" id="err-expiry">Invalid expiry date</div>
+        </div>
+        <div class="field-group">
+          <label for="cvv">CVV / CVC</label>
+          <input type="text" id="cvv" placeholder="•••" autocomplete="cc-csc" inputmode="numeric" maxlength="4">
+          <div class="error-msg" id="err-cvv">Invalid CVV</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label for="phone">Phone number</label>
+          <input type="tel" id="phone" placeholder="+357 99 000 000" autocomplete="tel">
+          <div class="error-msg" id="err-phone">Enter a valid phone number</div>
+        </div>
+        <div class="field-group">
+          <label for="postal">Postal code</label>
+          <input type="text" id="postal" placeholder="Postal / ZIP" autocomplete="postal-code" maxlength="10">
+        </div>
+      </div>
+
+      <div class="security-row">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <p>256-bit SSL · PCI DSS compliant · 3D Secure authentication</p>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submit-btn">
+        <div class="btn-content">
+          <span class="loader"></span>
+          <span class="btn-text">Pay USD 107.00 →</span>
+        </div>
+      </button>
+    </form>
+  </div>
+
+  <div class="footer">
+    <div class="footer-item">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Encrypted
+    </div>
+    <div class="footer-item">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      3D Secure
+    </div>
+    <div class="footer-item">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      Virtual Pay
+    </div>
+  </div>
+</div>
+
+<script>
+  // Live card preview
+  document.getElementById('pan').addEventListener('input', function() {
+    let v = this.value.replace(/\D/g,'').slice(0,16);
+    this.value = v.replace(/(.{4})/g,'$1 ').trim();
+    this.classList.toggle('has-value', v.length > 0);
+    const groups = (v+'................').slice(0,16).match(/.{4}/g);
+    document.getElementById('preview-number').innerHTML = groups.map((g,i) => {
+      const f = v.slice(i*4, i*4+4);
+      if(f.length===4) return f;
+      if(f.length>0) return f+'•'.repeat(4-f.length);
+      return '••••';
+    }).join(' &nbsp;');
+  });
+
+  document.getElementById('cardholder').addEventListener('input', function() {
+    this.classList.toggle('has-value', this.value.length>0);
+    document.getElementById('preview-name').textContent = this.value.toUpperCase() || 'YOUR NAME';
+  });
+
+  document.getElementById('expiry').addEventListener('input', function() {
+    let v = this.value.replace(/\D/g,'').slice(0,4);
+    if(v.length>=3) v = v.slice(0,2)+'/'+v.slice(2);
+    this.value = v;
+    this.classList.toggle('has-value', v.length>0);
+    document.getElementById('preview-expiry').textContent = v || 'MM/YY';
+  });
+
+  ['cvv','postal','email','phone'].forEach(id => {
+    document.getElementById(id).addEventListener('input', function() {
+      if(id==='cvv') this.value = this.value.replace(/\D/g,'').slice(0,4);
+      this.classList.toggle('has-value', this.value.length>0);
+    });
+  });
+
+  function showError(id, bad) {
+    document.getElementById('err-'+id)?.classList.toggle('show', bad);
+    document.getElementById(id)?.classList.toggle('error', bad);
+    return bad;
+  }
+
+  function validate() {
+    const name   = document.getElementById('cardholder').value.trim();
+    const email  = document.getElementById('email').value.trim();
+    const pan    = document.getElementById('pan').value.replace(/\s/g,'');
+    const expiry = document.getElementById('expiry').value.trim();
+    const cvv    = document.getElementById('cvv').value.trim();
+    const phone  = document.getElementById('phone').value.trim();
+    let ok = true;
+    if(showError('cardholder', name.length<2)) ok=false;
+    if(showError('email', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) ok=false;
+    if(showError('pan', pan.length!==16)) ok=false;
+    if(showError('expiry', !/^\d{2}\/\d{2}$/.test(expiry))) ok=false;
+    if(showError('cvv', cvv.length<3)) ok=false;
+    if(showError('phone', phone.length<5)) ok=false;
+    return ok;
+  }
+
+  document.getElementById('payment-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if(!validate()) return;
+
+    const btn = document.getElementById('submit-btn');
+    const globalErr = document.getElementById('global-error');
+    globalErr.classList.remove('show');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const rawName = document.getElementById('cardholder').value.trim();
+    const parts   = rawName.split(' ');
+
+    const payload = {
+      first_name:   parts[0],
+      last_name:    parts.slice(1).join(' ') || '-',
+      email:        document.getElementById('email').value.trim(),
+      mobile:       document.getElementById('phone').value.trim(),
+      pan:          document.getElementById('pan').value.replace(/\s/g,''),
+      expiry_date:  document.getElementById('expiry').value.trim(),
+      cvv:          document.getElementById('cvv').value.trim(),
+      zip:          document.getElementById('postal').value.trim(),
+    };
+
+    try {
+      const resp = await fetch('/api/pay', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+
+      const data = await resp.json();
+
+      if(data.redirectUrl) {
+        // Server got the 3DS URL — redirect the full browser to it
+        window.location.href = data.redirectUrl;
+        return;
+      }
+
+      // Server returned debug info — show it so we can troubleshoot
+      globalErr.textContent = data.error || 'Unexpected response from payment gateway. Check console for details.';
+      globalErr.classList.add('show');
+      console.log('Gateway response:', data);
+
+    } catch(err) {
+      globalErr.textContent = 'Network error — could not reach the payment server. Please try again.';
+      globalErr.classList.add('show');
+    }
+
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>
